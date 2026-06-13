@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>餐厅菜单系统</title>
+
+<style>
+body{
+    margin:0;
+    font-family: Arial;
+    background:#f5f7fb;
+}
+
+/* 顶部 */
+header{
+    background:#4A90E2;
+    color:white;
+    text-align:center;
+    padding:14px;
+    font-size:20px;
+}
+
+/* 主体 */
+.main{
+    display:flex;
+}
+
+/* 分类 */
+.sidebar{
+    width:160px;
+    background:white;
+    height:100vh;
+    padding:10px;
+    position:sticky;
+    top:0;
+}
+
+.sidebar button{
+    width:100%;
+    padding:8px;
+    margin:6px 0;
+    border:none;
+    border-radius:8px;
+    background:#eee;
+    cursor:pointer;
+}
+
+.sidebar button.active{
+    background:#4A90E2;
+    color:white;
+}
+
+/* 菜单 */
+.menu{
+    flex:1;
+    padding:15px;
+}
+
+/* 卡片 */
+.card{
+    display:flex;
+    align-items:center;
+    background:white;
+    border-radius:14px;
+    margin-bottom:12px;
+    padding:10px;
+    box-shadow:0 3px 10px rgba(0,0,0,0.08);
+    transition:0.2s;
+}
+
+.card:hover{
+    transform:translateY(-3px);
+    box-shadow:0 10px 18px rgba(0,0,0,0.15);
+}
+
+.card img{
+    width:90px;
+    height:70px;
+    border-radius:10px;
+    object-fit:contain;
+    background:white;
+    padding:4px;
+}
+
+.card-info{
+    flex:1;
+    padding:0 12px;
+}
+
+.card-info h4{
+    margin:0;
+}
+
+.price{
+    margin-top:6px;
+    color:#4A90E2;
+    font-weight:bold;
+}
+
+/* 按钮 */
+.card button{
+    background:#4A90E2;
+    color:white;
+    border:none;
+    padding:8px 12px;
+    border-radius:8px;
+    cursor:pointer;
+}
+
+/* 购物车 */
+.cart-bar{
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    background:white;
+    border-top:1px solid #ddd;
+    display:flex;
+    justify-content:space-between;
+    padding:10px 15px;
+}
+
+.cart-item{
+    font-size:13px;
+    background:#eef4ff;
+    padding:4px 8px;
+    border-radius:20px;
+    margin-right:6px;
+}
+
+/* 弹窗 */
+.modal{
+    display:none;
+    position:fixed;
+    top:0;left:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,0.5);
+    justify-content:center;
+    align-items:center;
+}
+
+.modal-content{
+    width:450px;
+    background:white;
+    border-radius:14px;
+    padding:20px;
+}
+
+.order-list{
+    max-height:220px;
+    overflow:auto;
+    margin:10px 0;
+    border-top:1px solid #eee;
+    border-bottom:1px solid #eee;
+}
+
+.order-item{
+    display:flex;
+    justify-content:space-between;
+    padding:6px 0;
+}
+
+.modal-btns{
+    display:flex;
+    justify-content:space-between;
+    margin-top:12px;
+}
+
+.cancel{
+    background:#999;
+    color:white;
+    border:none;
+    padding:8px 12px;
+    border-radius:8px;
+}
+
+.pay{
+    background:#4A90E2;
+    color:white;
+    border:none;
+    padding:8px 12px;
+    border-radius:8px;
+}
+</style>
+</head>
+
+<body>
+
+<header>🍽️ 餐厅点餐系统</header>
+
+<div class="main">
+
+<!-- 分类 -->
+<div class="sidebar">
+    <button onclick="filter('素菜')" class="active">素菜</button>
+    <button onclick="filter('荤菜')">荤菜</button>
+    <button onclick="filter('主食')">主食</button>
+    <button onclick="filter('饮料')">饮料</button>
+    <button onclick="filter('酒水')">酒水</button>
+</div>
+
+<!-- 菜单 -->
+<div class="menu" id="menu"></div>
+
+</div>
+
+<!-- 购物车 -->
+<div class="cart-bar">
+    <div id="cartBox"></div>
+    <div>
+        总价：¥<span id="total">0</span>
+        <button onclick="openModal()">结算</button>
+    </div>
+</div>
+
+<!-- 弹窗 -->
+<div class="modal" id="modal">
+<div class="modal-content">
+
+<h3>🧾 订单确认</h3>
+
+<div class="order-list" id="orderList"></div>
+
+<div style="text-align:right;font-weight:bold;">
+总价：¥<span id="modalTotal">0</span>
+</div>
+
+<div class="modal-btns">
+    <button class="cancel" onclick="closeModal()">取消</button>
+    <button class="pay" onclick="pay()">去付款</button>
+</div>
+
+</div>
+</div>
+
+<script>
+
+/* 菜品（已分类排序） */
+const dishes=[
+{id:1,name:"麻婆豆腐",price:18,type:"素菜",img:"image/麻婆豆腐.png"},
+{id:2,name:"炸蘑菇",price:14,type:"素菜",img:"image/炸蘑菇.png"},
+
+{id:3,name:"宫保鸡丁",price:28,type:"荤菜",img:"image/宫保鸡丁.png"},
+{id:4,name:"红烧牛肉",price:38,type:"荤菜",img:"image/红烧牛肉.png"},
+{id:5,name:"糖醋里脊",price:48,type:"荤菜",img:"image/糖醋里脊.png"},
+
+{id:6,name:"炒面",price:15,type:"主食",img:"image/炒面.png"},
+{id:7,name:"米饭",price:4,type:"主食",img:"image/米饭.png"},
+
+{id:8,name:"可乐",price:6,type:"饮料",img:"image/可乐.png"},
+{id:9,name:"汇源果汁",price:12,type:"饮料",img:"image/汇源果汁.png"},
+
+{id:10,name:"啤酒",price:8,type:"酒水",img:"image/雪花啤酒.png"}
+];
+
+let cart=[];
+let current="素菜";
+
+/* 渲染菜单 */
+function render(){
+let box=document.getElementById("menu");
+box.innerHTML="";
+
+dishes.filter(d=>d.type===current)
+.forEach(d=>{
+box.innerHTML+=`
+<div class="card">
+<img src="${d.img}">
+<div class="card-info">
+<h4>${d.name}</h4>
+<div class="price">¥${d.price}</div>
+</div>
+<button onclick="add(${d.id})">加入</button>
+</div>`;
+});
+}
+
+/* 分类切换 */
+function filter(type){
+current=type;
+
+document.querySelectorAll(".sidebar button")
+.forEach(b=>b.classList.remove("active"));
+
+event.target.classList.add("active");
+
+render();
+}
+
+/* 加入购物车 */
+function add(id){
+let d=dishes.find(x=>x.id===id);
+let e=cart.find(x=>x.id===id);
+
+if(e)e.count++;
+else cart.push({...d,count:1});
+
+updateCart();
+}
+
+/* ❌ 删除功能 */
+function remove(id){
+let item=cart.find(c=>c.id===id);
+
+if(!item) return;
+
+item.count--;
+
+if(item.count<=0){
+cart=cart.filter(c=>c.id!==id);
+}
+
+updateCart();
+}
+
+/* 更新购物车 */
+function updateCart(){
+let box=document.getElementById("cartBox");
+let total=0;
+
+box.innerHTML="";
+
+cart.forEach(c=>{
+total+=c.price*c.count;
+
+box.innerHTML+=`
+<span class="cart-item">
+${c.name}x${c.count}
+<span onclick="remove(${c.id})" style="margin-left:6px;cursor:pointer;">❌</span>
+</span>`;
+});
+
+document.getElementById("total").innerText=total;
+}
+
+/* 打开弹窗 */
+function openModal(){
+if(cart.length===0)return;
+
+let list=document.getElementById("orderList");
+list.innerHTML="";
+let total=0;
+
+cart.forEach(c=>{
+total+=c.price*c.count;
+
+list.innerHTML+=`
+<div class="order-item">
+<span>${c.name} x${c.count}</span>
+<span>¥${c.price*c.count}</span>
+</div>`;
+});
+
+document.getElementById("modalTotal").innerText=total;
+document.getElementById("modal").style.display="flex";
+}
+
+/* 关闭弹窗 */
+function closeModal(){
+document.getElementById("modal").style.display="none";
+}
+
+/* 支付 */
+function pay(){
+alert("支付成功 🎉");
+cart=[];
+updateCart();
+closeModal();
+}
+
+render();
+
+</script>
+
+</body>
+</html>
